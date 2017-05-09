@@ -1,0 +1,18 @@
+{
+  "name": "freeflowdigital/ffd-slack",
+  "description": "Login via slack",
+  "keywords": ["wordpress", "plugin", "freeflowdigital", "slack"],
+  "homepage": "https://freeflowdigital.com",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Chris Clark",
+      "email": "chris.clark@freeflowdigital.com",
+      "homepage": "https://freeflowdigital.com"
+    }
+  ],
+  "type": "wordpress-plugin",
+  "require": {
+    "php": ">=5.6",
+    "composer/installers": "v1.0.6"
+  }

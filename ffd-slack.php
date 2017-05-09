@@ -1,0 +1,237 @@
+<?php
+/*
+Plugin Name: FFD Slack Login
+Plugin URI:  github.com/freeflowdigital/ffds_slack
+Description: Enable Wordpress logins via slack
+Version:     20170509
+Author:      Freeflowdigital.com
+Author URI:  https://freeflowdigital.com/
+License:     GPL2
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: wporg
+Domain Path: /languages
+*/
+defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
+
+add_action( 'admin_menu', 'ffds_add_admin_menu' );
+add_action( 'admin_init', 'ffds_settings_init' );
+
+
+function ffds_add_admin_menu(  ) {
+
+	add_options_page( 'Slack Login', 'Slack Login', 'manage_options', 'ffd-slack-login', 'ffds_options_page' );
+
+}
+
+
+function ffds_settings_init(  ) {
+
+	register_setting( 'pluginPage', 'ffds_settings');
+
+	add_settings_section(
+		'ffds_pluginPage_section',
+		__( 'Slack Application Settings', 'wordpress' ),
+		'ffds_settings_section_callback',
+		'pluginPage'
+	);
+
+	add_settings_field(
+		'ffds_client_id',
+		__( 'Client ID', 'wordpress' ),
+		'ffds_client_id_render',
+		'pluginPage',
+		'ffds_pluginPage_section'
+	);
+
+	add_settings_field(
+		'ffds_secret',
+		__( 'Client Secret', 'wordpress' ),
+		'ffds_secret_render',
+		'pluginPage',
+		'ffds_pluginPage_section'
+	);
+
+	add_settings_field(
+		'ffds_register',
+		__( 'Allow Registrations', 'wordpress' ),
+		'ffds_registration_render',
+		'pluginPage',
+		'ffds_pluginPage_section'
+	);
+
+
+}
+
+
+function ffds_client_id_render(  ) {
+
+	$options = get_option( 'ffds_settings' );
+	?>
+	<input type='text' name='ffds_settings[ffds_client_id]' value='<?php echo $options['ffds_client_id']; ?>'>
+	<?php
+
+}
+
+
+function ffds_secret_render(  ) {
+
+	$options = get_option( 'ffds_settings' );
+	?>
+	<input type='text' name='ffds_settings[ffds_secret]' value='<?php echo $options['ffds_secret']; ?>'>
+	<?php
+
+}
+
+function ffds_registration_render(  ) {
+
+	$options = get_option( 'ffds_settings' );
+	?>
+	<input type='checkbox' name='ffds_settings[ffds_registration]' <?php checked( $options['ffds_registration'], 1 ); ?> value='1'>
+	<?php
+
+}
+
+
+
+
+function ffds_settings_section_callback(  ) {
+
+	echo __( 'lorem ipsum', 'wordpress' );
+
+}
+
+
+function ffds_options_page(  ) {
+
+	?>
+	<form action='options.php' method='post'>
+
+		<h2>Login Via Slack</h2>
+
+		<?php
+		settings_fields( 'pluginPage' );
+		do_settings_sections( 'pluginPage' );
+		submit_button();
+		?>
+
+	</form>
+	<?php
+
+}
+
+$slack  = new FfdSlack();
+
+
+class FfdSlack {
+
+	const _SLACK_AUTHORIZE_URL = "https://slack.com/oauth/authorize";
+
+	public $slack_client_id;
+
+	public $slack_secret;
+
+	public $allow_registrations;
+
+
+	public function __construct() {
+
+		//get the slack application options
+		$options = get_option('ffds_settings');
+		if ($options) {
+			$this->slack_client_id      = $options['ffds_client_id'];
+			$this->slack_secret         = $options['ffds_secret'];
+			if (isset($options['ffds_team'])) {
+				$this->slack_team = $options['ffds_team'];
+			}
+			if (isset($options['ffds_registration'])){
+				$this->allow_registrations  = $options['ffds_registration'];
+			}
+
+			// Add Login with Slack to login form
+			add_action( 'login_form', array( $this, 'display_login_button' ) );
+
+			add_action( 'init', array( $this, 'process_slack' ) );
+		}
+	}
+
+	public function display_login_button() {
+
+		$url = self::_SLACK_AUTHORIZE_URL . "?scope=identity.basic,identity.email";
+		$url .= "&client_id=" . $this->slack_client_id;
+		$url .= "&state=slack_login";
+
+		// User is not logged in, display login button
+		echo "<a href=\"$url\">
+				<img alt=\"Sign in with Slack\" height=\"40\" width=\"172\" src=\"https://platform.slack-edge.com/img/sign_in_with_slack.png\" srcset=\"https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack@2x.png 2x\" />
+				</a>";
+	}
+
+	public function process_slack(){
+
+		// Dont run our code if not needed
+		if (!isset($_REQUEST['state']) && $_REQUEST['state'] != 'slack_login'){
+			return false;
+		}
+		// verify we got a response code
+		if (!isset($_REQUEST['code'])){
+			return false;
+		}
+		$code = $_REQUEST['code'];
+
+		if (isset($code)) {
+			$response_json = wp_remote_retrieve_body( wp_remote_get( 'https://slack.com/api/oauth.access?client_id=' . $this->slack_client_id . '&client_secret=' . $this->slack_secret . '&code=' .$code));
+			$response = json_decode($response_json, true);
+
+
+			$user_id = $this->get_slack_user_id($response, $this->allow_registrations);
+			if($user_id) {
+				// Signon user by ID
+				wp_set_auth_cookie( $user_id );
+			    // Set current WP user so that authentication takes immediate effect without waiting for cookie
+				wp_set_current_user( $user_id );
+				wp_redirect( admin_url() );
+			}
+		}
+	}
+
+	private function get_slack_user_id($slack_response, $register = FALSE){
+		error_log(print_r($slack_response, TRUE));
+		if (!$slack_response['ok']){
+			return FALSE;
+		}
+		$user = get_users(array(
+			'meta_key' => 'slack_id',
+			'meta_value' => $slack_response['user']['id'],
+			'number' => 1,
+			'count_total' => FALSE,
+			'fields' => 'ids',
+		));
+
+		if(!$user){
+			$user = get_users(array(
+				'search' => $slack_response['user']['email'],
+				'number' => 1,
+				'count_total' => FALSE,
+				'fields' => 'ids',
+			));
+			if ($user){
+				//add slack id to meta
+				add_user_meta($user->id, 'slack_id', $response['user']['id'], TRUE);
+			}
+		}
+		if($user) {
+			add_user_meta( $user->id, 'slack_token', $response['access_token'], TRUE );
+			return $user->id;
+		}
+		elseif($register){
+			//register the user
+			$random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
+			$user_id = wp_create_user( $slack_response['user']['name'], $random_password, $slack_response['user']['email'] );
+			add_user_meta($user_id, 'slack_id', $response['user']['id'], TRUE);
+			return $user_id;
+
+		}
+		// registration not allowed and no user found
+		return FALSE;
+	}
+}
