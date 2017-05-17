@@ -168,7 +168,7 @@ class FfdSlack {
 	public function display_login_button() {
 
 		$url = self::_SLACK_AUTHORIZE_URL . "?scope=identity.basic,identity.email";
-//        $url .=  "&redirect_uri=" . wp_login_url();
+        $url .=  "&redirect_uri=" . urlencode(wp_login_url());
 		$url .= "&client_id=" . $this->slack_client_id;
 		$url .= "&state=slack_login";
 
@@ -196,7 +196,6 @@ class FfdSlack {
 
 
 			$user_id = $this->get_slack_user_id($response, $this->allow_registrations);
-			error_log(print_r('returned user id ' . $user_id, TRUE));
 			if($user_id) {
 				// Signon user by ID
 				wp_set_auth_cookie( $user_id );
@@ -208,13 +207,10 @@ class FfdSlack {
 	}
 
 	private function get_slack_user_id($slack_response, $register = FALSE){
-		error_log(print_r($slack_response, TRUE));
-		/*
-		 * TODO: figure this validation out
-		 */
-//		if (!$slack_response['ok']){
-//			return FALSE;
-//		}
+
+		if (TRUE !== $slack_response['ok']){
+			return FALSE;
+		}
 		$user = get_users(array(
 			'meta_key' => 'slack_id',
 			'meta_value' => $slack_response['user']['id'],
@@ -231,15 +227,13 @@ class FfdSlack {
 				'fields' => 'ids',
 			));
 			if ($user){
-				error_log(print_r($user, TRUE));
 				//add slack id to meta
 				add_user_meta($user[0], 'slack_id', $slack_response['user']['id'], TRUE);
 				add_user_meta($user[0], 'slack_team', $slack_response['team']['id'], TRUE);
 			}
 		}
 		if($user) {
-			add_user_meta( $user[0], 'slack_token', $slack_response['access_token'], TRUE );
-//			error_log(print_r($user, TRUE));
+			update_user_meta( $user[0], 'slack_token', $slack_response['access_token']);
 			return $user[0];
 		}
 		elseif($register){
