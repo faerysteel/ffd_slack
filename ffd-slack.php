@@ -26,7 +26,7 @@ function ffds_add_admin_menu(  ) {
 
 function ffds_settings_init(  ) {
 
-	register_setting( 'pluginPage', 'ffds_settings');
+	register_setting( 'pluginPage', 'ffds_settings', 'ffds_settings_validate');
 
 	add_settings_section(
 		'ffds_pluginPage_section',
@@ -60,6 +60,17 @@ function ffds_settings_init(  ) {
 	);
 
 
+}
+
+function ffds_settings_validate($input) {
+    /*
+    TODO: discover rules to validate client id and client secret
+    */
+    if(!isset($input['ffds_registration'])){
+	    $input['ffds_registration'] = 0;
+    }
+//    echo print_r($input, true);
+    return $input;
 }
 
 
@@ -157,6 +168,7 @@ class FfdSlack {
 	public function display_login_button() {
 
 		$url = self::_SLACK_AUTHORIZE_URL . "?scope=identity.basic,identity.email";
+        $url .=  "&redirect_uri=" . urlencode(wp_login_url());
 		$url .= "&client_id=" . $this->slack_client_id;
 		$url .= "&state=slack_login";
 
@@ -169,7 +181,7 @@ class FfdSlack {
 	public function process_slack(){
 
 		// Dont run our code if not needed
-		if (!isset($_REQUEST['state']) && $_REQUEST['state'] != 'slack_login'){
+		if (!isset($_REQUEST['state']) || $_REQUEST['state'] != 'slack_login'){
 			return false;
 		}
 		// verify we got a response code
@@ -195,8 +207,8 @@ class FfdSlack {
 	}
 
 	private function get_slack_user_id($slack_response, $register = FALSE){
-		error_log(print_r($slack_response, TRUE));
-		if (!$slack_response['ok']){
+
+		if (TRUE !== $slack_response['ok']){
 			return FALSE;
 		}
 		$user = get_users(array(
@@ -216,18 +228,21 @@ class FfdSlack {
 			));
 			if ($user){
 				//add slack id to meta
-				add_user_meta($user->id, 'slack_id', $response['user']['id'], TRUE);
+				add_user_meta($user[0], 'slack_id', $slack_response['user']['id'], TRUE);
+				add_user_meta($user[0], 'slack_team', $slack_response['team']['id'], TRUE);
 			}
 		}
 		if($user) {
-			add_user_meta( $user->id, 'slack_token', $response['access_token'], TRUE );
-			return $user->id;
+			update_user_meta( $user[0], 'slack_token', $slack_response['access_token']);
+			return $user[0];
 		}
 		elseif($register){
 			//register the user
 			$random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
 			$user_id = wp_create_user( $slack_response['user']['name'], $random_password, $slack_response['user']['email'] );
-			add_user_meta($user_id, 'slack_id', $response['user']['id'], TRUE);
+			add_user_meta($user_id, 'slack_id', $slack_response['user']['id'], TRUE);
+			add_user_meta($user_id, 'slack_team', $slack_response['team']['id'], TRUE);
+			add_user_meta( $user_id, 'slack_token', $slack_response['access_token'], TRUE );
 			return $user_id;
 
 		}
