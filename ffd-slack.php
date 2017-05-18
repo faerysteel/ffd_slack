@@ -137,6 +137,8 @@ class FfdSlack {
 
 	const _SLACK_AUTHORIZE_URL = "https://slack.com/oauth/authorize";
 
+	const _SLACK_ACCESS_URL = "https://slack.com/api/oauth.access";
+
 	public $slack_client_id;
 
 	public $slack_secret;
@@ -191,7 +193,14 @@ class FfdSlack {
 		$code = $_REQUEST['code'];
 
 		if (isset($code)) {
-			$response_json = wp_remote_retrieve_body( wp_remote_get( 'https://slack.com/api/oauth.access?client_id=' . $this->slack_client_id . '&client_secret=' . $this->slack_secret . '&code=' .$code));
+		    // create access URL
+            $url = self::_SLACK_ACCESS_URL;
+            $url .= '?client_id=' . $this->slack_client_id;
+            $url .= '&client_secret=' . $this->slack_secret;
+            $url .= '&code=' .$code;
+            $url .= '&redirect_uri=' . urlencode(wp_login_url());
+
+			$response_json = wp_remote_retrieve_body( wp_remote_get( $url));
 			$response = json_decode($response_json, true);
 
 
