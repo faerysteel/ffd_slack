@@ -248,7 +248,7 @@ class FfdSlack {
 		elseif($register){
 			//register the user
 			$random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
-			$user_id = wp_create_user( $slack_response['user']['name'], $random_password, $slack_response['user']['email'] );
+			$user_id = wp_create_user( str_replace(' ', '_', $slack_response['user']['name']), $random_password, $slack_response['user']['email'] );
 			add_user_meta($user_id, 'slack_id', $slack_response['user']['id'], TRUE);
 			add_user_meta($user_id, 'slack_team', $slack_response['team']['id'], TRUE);
 			add_user_meta( $user_id, 'slack_token', $slack_response['access_token'], TRUE );
