@@ -59,6 +59,13 @@ function ffds_settings_init(  ) {
 		'ffds_pluginPage_section'
 	);
 
+	add_settings_field(
+		'ffds_roles',
+		__( 'Add New Users to Role', 'wordpress' ),
+		'ffds_roles_render',
+		'pluginPage',
+		'ffds_pluginPage_section'
+	);
 
 }
 
@@ -102,6 +109,23 @@ function ffds_registration_render(  ) {
 
 }
 
+function ffds_roles_render() {
+
+	$options = get_option( 'ffds_settings' );
+	// set default
+	if (!isset($options['ffds_roles'])){
+	    $options['ffds_roles'] = 'subscriber';
+    }
+    $roles = new WP_Roles;
+    $role_list = $roles->get_names();
+    ?>
+    <ul>
+    <?php foreach ($role_list as $role_key => $role){ ?>
+        <li><input type='radio' name='ffds_settings[ffds_roles]' id='ffds_roles_<?php echo $role;?>' <?php checked( $options['ffds_roles'], $role_key); ?> value='<?php echo $role_key; ?>'><label for='ffds_roles_<?php echo $role;?>'><?php echo $role;?></label></li>
+    <?php    } ?>
+    </ul>
+    <?php
+}
 
 
 
@@ -145,6 +169,8 @@ class FfdSlack {
 
 	public $allow_registrations;
 
+	public $register_role;
+
 
 	public function __construct() {
 
@@ -158,6 +184,9 @@ class FfdSlack {
 			}
 			if (isset($options['ffds_registration'])){
 				$this->allow_registrations  = $options['ffds_registration'];
+			}
+			if (isset($options['ffds_roles'])){
+				$this->register_role  = $options['ffds_roles'];
 			}
 
 			// Add Login with Slack to login form
@@ -204,7 +233,7 @@ class FfdSlack {
 			$response = json_decode($response_json, true);
 
 
-			$user_id = $this->get_slack_user_id($response, $this->allow_registrations);
+			$user_id = $this->get_slack_user_id($response, $this->allow_registrations, $this->register_role);
 			if($user_id) {
 				// Signon user by ID
 				wp_set_auth_cookie( $user_id );
@@ -215,7 +244,7 @@ class FfdSlack {
 		}
 	}
 
-	private function get_slack_user_id($slack_response, $register = FALSE){
+	private function get_slack_user_id($slack_response, $register = FALSE, $role = ''){
 
 		if (TRUE !== $slack_response['ok']){
 			return FALSE;
@@ -248,7 +277,12 @@ class FfdSlack {
 		elseif($register){
 			//register the user
 			$random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
+
 			$user_id = wp_create_user( str_replace(' ', '_', $slack_response['user']['name']), $random_password, $slack_response['user']['email'] );
+            if (!empty($role)){
+                $user = get_user_by('id', $user_id);
+                $user->set_role($role);
+            }
 			add_user_meta($user_id, 'slack_id', $slack_response['user']['id'], TRUE);
 			add_user_meta($user_id, 'slack_team', $slack_response['team']['id'], TRUE);
 			add_user_meta( $user_id, 'slack_token', $slack_response['access_token'], TRUE );
