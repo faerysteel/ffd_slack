@@ -114,7 +114,7 @@ function ffds_roles_render() {
 	$options = get_option( 'ffds_settings' );
 	// set default
 	if (!isset($options['ffds_roles'])){
-	    $options['ffds_roles'] = 'subscriber';
+	    $options['ffds_roles'] = get_option('default_role');
     }
     $roles = new WP_Roles;
     $role_list = $roles->get_names();
