@@ -66,7 +66,13 @@ function ffds_settings_init(  ) {
 		'pluginPage',
 		'ffds_pluginPage_section'
 	);
-
+  add_settings_field(
+		'ffds_redirect',
+		__( 'Redirect after login', 'wordpress' ),
+		'ffds_redirect_render',
+		'pluginPage',
+		'ffds_pluginPage_section'
+	);
 }
 
 function ffds_settings_validate($input) {
@@ -84,6 +90,9 @@ function ffds_settings_validate($input) {
 function ffds_client_id_render(  ) {
 
 	$options = get_option( 'ffds_settings' );
+	if (!isset($options['ffds_client_id'])){
+		$options['ffds_client_id'] = '';
+	}
 	?>
 	<input type='text' name='ffds_settings[ffds_client_id]' value='<?php echo $options['ffds_client_id']; ?>'>
 	<?php
@@ -94,6 +103,9 @@ function ffds_client_id_render(  ) {
 function ffds_secret_render(  ) {
 
 	$options = get_option( 'ffds_settings' );
+	if (!isset($options['ffds_secret'])){
+		$options['ffds_secret'] = '';
+	}
 	?>
 	<input type='text' name='ffds_settings[ffds_secret]' value='<?php echo $options['ffds_secret']; ?>'>
 	<?php
@@ -103,6 +115,9 @@ function ffds_secret_render(  ) {
 function ffds_registration_render(  ) {
 
 	$options = get_option( 'ffds_settings' );
+	if (!isset($options['ffds_registration'])){
+		$options['ffds_registration'] = '';
+	}
 	?>
 	<input type='checkbox' name='ffds_settings[ffds_registration]' <?php checked( $options['ffds_registration'], 1 ); ?> value='1'>
 	<?php
@@ -127,6 +142,18 @@ function ffds_roles_render() {
     <?php
 }
 
+function ffds_redirect_render(  ) {
+
+	$options = get_option( 'ffds_settings' );
+	if (!isset($options['ffds_redirect'])){
+        $options['ffds_redirect'] = '';
+    }
+	?>
+    <p>Page to redirect users to after login via slack.  If not set will default to <?php echo parse_url(admin_url(), PHP_URL_PATH); ?>.</p>
+    <?php echo home_url(); ?><input type='text' name='ffds_settings[ffds_redirect]' value='<?php echo $options['ffds_redirect']; ?>'>
+	<?php
+
+}
 
 
 function ffds_settings_section_callback(  ) {
@@ -171,6 +198,7 @@ class FfdSlack {
 
 	public $register_role;
 
+	public $redirect;
 
 	public function __construct() {
 
@@ -185,9 +213,18 @@ class FfdSlack {
 			if (isset($options['ffds_registration'])){
 				$this->allow_registrations  = $options['ffds_registration'];
 			}
+
 			if (isset($options['ffds_roles'])){
 				$this->register_role  = $options['ffds_roles'];
 			}
+
+			if (isset($options['ffds_redirect']) && !empty($options['ffds_redirect'])){
+				$this->redirect  = $options['ffds_redirect'];
+			}
+			else{
+				$this->redirect = admin_url();
+      }
+
 
 			// Add Login with Slack to login form
 			add_action( 'login_form', array( $this, 'display_login_button' ) );
@@ -239,7 +276,7 @@ class FfdSlack {
 				wp_set_auth_cookie( $user_id );
 			    // Set current WP user so that authentication takes immediate effect without waiting for cookie
 				wp_set_current_user( $user_id );
-				wp_redirect( admin_url() );
+				wp_redirect($this->redirect);
 			}
 		}
 	}
