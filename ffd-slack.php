@@ -247,7 +247,7 @@ class FfdSlack {
 
 
 			// Add Login with Slack to login form
-			add_action( 'login_form', array( $this, 'display_login_button' ) );
+			add_action( 'login_header', array( $this, 'display_login_button' ) );
 
 			add_action( 'init', array( $this, 'process_slack' ) );
 		}
