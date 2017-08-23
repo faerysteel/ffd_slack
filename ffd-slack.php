@@ -260,10 +260,28 @@ class FfdSlack {
 		$url .= "&client_id=" . $this->slack_client_id;
 		$url .= "&state=slack_login";
 
-		// User is not logged in, display login button
-		echo "<a href=\"$url\">
+		// User is not logged in, display login button.
+
+        // Get helptext.
+        $options = get_option( 'ffds_settings' );
+        $helptext = isset($options['ffds_helptext']) ? $options['ffds_helptext'] : '';
+
+        // Get allowed tags and make sure paragraphs are allowed.
+        global $allowedtags;
+        $tags = $allowedtags;
+        if (!isset($tags['p'])) {
+            $tags['p'] = array();
+        }
+
+        // Sanitize.
+        $helptext = wp_kses($helptext, $tags);
+        $helptext = '<div class="helptext">'.$helptext.'</div>';
+
+        // Button.
+        $button = "<a class=\"slack-login\" href=\"$url\">
 				<img alt=\"Sign in with Slack\" height=\"40\" width=\"172\" src=\"https://platform.slack-edge.com/img/sign_in_with_slack.png\" srcset=\"https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack@2x.png 2x\" />
 				</a>";
+		echo "<div id=\"ffd-slack-wrapper\">".$helptext.$button."</div>";
 	}
 
 	public function process_slack(){
