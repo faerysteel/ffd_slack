@@ -73,6 +73,13 @@ function ffds_settings_init(  ) {
 		'pluginPage',
 		'ffds_pluginPage_section'
 	);
+  add_settings_field(
+        'ffds_helptext',
+        __( 'Helptext on login page', 'wordpress' ),
+        'ffds_helptext_render',
+        'pluginPage',
+        'ffds_pluginPage_section'
+  );
 }
 
 function ffds_settings_validate($input) {
@@ -155,6 +162,19 @@ function ffds_redirect_render(  ) {
 
 }
 
+function ffds_helptext_render(  ) {
+
+  $options = get_option( 'ffds_settings' );
+  if (!isset($options['ffds_helptext'])){
+    $options['ffds_helptext'] = '';
+  }
+
+  ?>
+    <p>Helptext to display above Slack login button.</p>
+    <?php wp_editor( $options['ffds_helptext'], 'ffds_helptext', $settings = array('textarea_name' => 'ffds_settings[ffds_helptext]', 'textarea_rows'=> '10') ); ?>
+  <?php
+
+}
 
 function ffds_settings_section_callback(  ) {
 
@@ -227,7 +247,7 @@ class FfdSlack {
 
 
 			// Add Login with Slack to login form
-			add_action( 'login_form', array( $this, 'display_login_button' ) );
+			add_action( 'login_header', array( $this, 'display_login_button' ) );
 
 			add_action( 'init', array( $this, 'process_slack' ) );
 		}
@@ -240,10 +260,28 @@ class FfdSlack {
 		$url .= "&client_id=" . $this->slack_client_id;
 		$url .= "&state=slack_login";
 
-		// User is not logged in, display login button
-		echo "<a href=\"$url\">
+		// User is not logged in, display login button.
+
+        // Get helptext.
+        $options = get_option( 'ffds_settings' );
+        $helptext = isset($options['ffds_helptext']) ? $options['ffds_helptext'] : '';
+
+        // Get allowed tags and make sure paragraphs are allowed.
+        global $allowedtags;
+        $tags = $allowedtags;
+        if (!isset($tags['p'])) {
+            $tags['p'] = array();
+        }
+
+        // Sanitize.
+        $helptext = wp_kses($helptext, $tags);
+        $helptext = '<div class="helptext">'.$helptext.'</div>';
+
+        // Button.
+        $button = "<a class=\"slack-login\" href=\"$url\">
 				<img alt=\"Sign in with Slack\" height=\"40\" width=\"172\" src=\"https://platform.slack-edge.com/img/sign_in_with_slack.png\" srcset=\"https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack@2x.png 2x\" />
 				</a>";
+		echo "<div id=\"ffd-slack-wrapper\">".$helptext.$button."</div>";
 	}
 
 	public function process_slack(){
