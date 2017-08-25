@@ -267,14 +267,10 @@ class FfdSlack {
         $helptext = isset($options['ffds_helptext']) ? $options['ffds_helptext'] : '';
 
         // Get allowed tags and make sure paragraphs are allowed.
-        global $allowedtags;
-        $tags = $allowedtags;
-        if (!isset($tags['p'])) {
-            $tags['p'] = array();
-        }
+        global $allowedposttags;
 
         // Sanitize.
-        $helptext = wp_kses($helptext, $tags);
+        $helptext = wp_kses($helptext, $allowedposttags);
         $helptext = '<div class="helptext">'.$helptext.'</div>';
 
         // Button.
