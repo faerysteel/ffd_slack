@@ -274,9 +274,9 @@ class FfdSlack {
         $helptext = '<div class="helptext">'.$helptext.'</div>';
 
         // Button.
-        $button = "<a class=\"slack-login\" href=\"$url\">
+        $button = "<div class=\"slack-login\"><a href=\"$url\">
 				<img alt=\"Sign in with Slack\" height=\"40\" width=\"172\" src=\"https://platform.slack-edge.com/img/sign_in_with_slack.png\" srcset=\"https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack@2x.png 2x\" />
-				</a>";
+				</a></div>";
 		echo "<div id=\"ffd-slack-wrapper\">".$helptext.$button."</div>";
 	}
 
