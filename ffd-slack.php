@@ -220,6 +220,8 @@ class FfdSlack {
 
 	public $redirect;
 
+	public $error;
+
 	public function __construct() {
 
 		//get the slack application options
@@ -349,7 +351,14 @@ class FfdSlack {
 			//register the user
 			$random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
 			$user_id = wp_create_user( str_replace(' ', '_', $slack_response['user']['name']), $random_password, $slack_response['user']['email'] );
-            if (!empty($role)){
+
+			if (is_a($user_id, 'WP_Error')) {
+			    // There was an error creating the user.
+                $this->error = $user_id;
+                return FALSE;
+            }
+
+			if (!empty($role)){
                 $user = get_user_by('id', $user_id);
                 $user->set_role($role);
             }
