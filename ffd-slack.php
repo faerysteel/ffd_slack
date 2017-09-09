@@ -336,12 +336,24 @@ class FfdSlack {
 		));
 
 		if(!$user){
+		    // Check for user via email.
 			$user = get_users(array(
 				'search' => $slack_response['user']['email'],
 				'number' => 1,
 				'count_total' => FALSE,
 				'fields' => 'ids',
 			));
+
+			// Check for user via generated username.
+            if (!$user) {
+              $user = get_users(array(
+                'search' => str_replace(' ', '_', $slack_response['user']['name']),
+                'number' => 1,
+                'count_total' => FALSE,
+                'fields' => 'ids',
+              ));
+            }
+
 			if ($user){
 				//add slack id to meta
 				add_user_meta($user[0], 'slack_id', $slack_response['user']['id'], TRUE);
