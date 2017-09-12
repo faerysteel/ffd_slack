@@ -220,6 +220,8 @@ class FfdSlack {
 
 	public $redirect;
 
+	public $error;
+
 	public function __construct() {
 
 		//get the slack application options
@@ -272,6 +274,11 @@ class FfdSlack {
         // Sanitize.
         $helptext = wp_kses($helptext, $allowedposttags);
         $helptext = '<div class="helptext">'.$helptext.'</div>';
+
+        // If we've redirected here after a login error, display it.
+        if (is_a($this->error, 'WP_Error')) {
+          $helptext .= "<div class=\"login-error\">There was an error logging in via Slack.  Please contact your site administrator for assistance.</div>";
+        }
 
         // Button.
         $button = "<div class=\"slack-login\"><a href=\"$url\">
@@ -329,12 +336,24 @@ class FfdSlack {
 		));
 
 		if(!$user){
+		    // Check for user via email.
 			$user = get_users(array(
 				'search' => $slack_response['user']['email'],
 				'number' => 1,
 				'count_total' => FALSE,
 				'fields' => 'ids',
 			));
+
+			// Check for user via generated username.
+            if (!$user) {
+              $user = get_users(array(
+                'search' => str_replace(' ', '_', $slack_response['user']['name']),
+                'number' => 1,
+                'count_total' => FALSE,
+                'fields' => 'ids',
+              ));
+            }
+
 			if ($user){
 				//add slack id to meta
 				add_user_meta($user[0], 'slack_id', $slack_response['user']['id'], TRUE);
@@ -349,7 +368,14 @@ class FfdSlack {
 			//register the user
 			$random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
 			$user_id = wp_create_user( str_replace(' ', '_', $slack_response['user']['name']), $random_password, $slack_response['user']['email'] );
-            if (!empty($role)){
+
+			if (is_a($user_id, 'WP_Error')) {
+			    // There was an error creating the user.
+                $this->error = $user_id;
+                return FALSE;
+            }
+
+			if (!empty($role)){
                 $user = get_user_by('id', $user_id);
                 $user->set_role($role);
             }
